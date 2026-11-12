@@ -1,0 +1,533 @@
+<Window x:Class="Atoll.Views.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        Title="Atoll Settings"
+        Icon="/Resources/Atoll.ico"
+        Width="740"
+        Height="590"
+        WindowStartupLocation="CenterScreen"
+        WindowStyle="None"
+        ResizeMode="CanMinimize"
+        Background="{StaticResource SettingsWindowBgBrush}"
+        Foreground="{StaticResource TextPrimaryBrush}"
+        FontFamily="Segoe UI Variable Text, Segoe UI">
+
+    <shell:WindowChrome.WindowChrome>
+        <shell:WindowChrome CaptionHeight="46"
+                            CornerRadius="12"
+                            GlassFrameThickness="0"
+                            ResizeBorderThickness="0"
+                            UseAeroCaptionButtons="False" />
+    </shell:WindowChrome.WindowChrome>
+
+    <Border BorderBrush="#26FFFFFF" BorderThickness="1" CornerRadius="10" Background="{StaticResource SettingsWindowBgBrush}">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="46" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="52" />
+            </Grid.RowDefinitions>
+
+            <!-- Custom Dark Titlebar -->
+            <Border Grid.Row="0"
+                    Background="#101014"
+                    BorderBrush="#16FFFFFF"
+                    BorderThickness="0,0,0,1"
+                    CornerRadius="10,10,0,0"
+                    Padding="16,0,10,0">
+                <Grid>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Image Source="/Resources/Atoll.ico" Width="20" Height="20" Margin="0,0,10,0" RenderOptions.BitmapScalingMode="HighQuality" />
+                        <TextBlock Text="Atoll Settings" FontSize="13.5" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" />
+                        <Border Background="{DynamicResource AccentSoftBrush}"
+                                BorderBrush="#24FFFFFF"
+                                BorderThickness="1"
+                                CornerRadius="6"
+                                Padding="7,2"
+                                Margin="10,0,0,0"
+                                VerticalAlignment="Center">
+                            <TextBlock Text="{Binding AppVersion, StringFormat='v{0}'}"
+                                       FontSize="10.5"
+                                       FontWeight="SemiBold"
+                                       Foreground="{DynamicResource AccentPrimaryBrush}" />
+                        </Border>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center"
+                                shell:WindowChrome.IsHitTestVisibleInChrome="True">
+                        <Button Content="&#xE921;"
+                                ToolTip="Minimize"
+                                Style="{StaticResource TitleBarCaptionButtonStyle}"
+                                Click="OnMinimizeClick" />
+                        <Button Content="&#xE8BB;"
+                                ToolTip="Close"
+                                Style="{StaticResource TitleBarCaptionButtonStyle}"
+                                Margin="4,0,0,0"
+                                Click="OnCloseClick" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Two-Pane Body -->
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="206" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Left Navigation Rail -->
+                <Border Grid.Column="0"
+                        Background="{StaticResource SettingsSidebarBgBrush}"
+                        BorderBrush="#16FFFFFF"
+                        BorderThickness="0,0,1,0"
+                        Padding="12,14">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0">
+                            <TextBlock Text="PREFERENCES"
+                                       Foreground="{StaticResource TextMutedBrush}"
+                                       FontSize="10"
+                                       FontWeight="Bold"
+                                       Margin="8,0,0,8" />
+
+                            <RadioButton x:Name="NavDisplay"
+                                         Content="Display &amp; Position"
+                                         Tag="&#xE7F4;"
+                                         GroupName="SettingsNav"
+                                         IsChecked="True"
+                                         Style="{StaticResource NavTabStyle}"
+                                         Checked="OnNavTabChecked" />
+
+                            <RadioButton x:Name="NavMotion"
+                                         Content="Motion &amp; Power"
+                                         Tag="&#xE945;"
+                                         GroupName="SettingsNav"
+                                         Style="{StaticResource NavTabStyle}"
+                                         Checked="OnNavTabChecked" />
+
+                            <RadioButton x:Name="NavModules"
+                                         Content="Modules"
+                                         Tag="&#xE74C;"
+                                         GroupName="SettingsNav"
+                                         Style="{StaticResource NavTabStyle}"
+                                         Checked="OnNavTabChecked" />
+
+                            <RadioButton x:Name="NavHotkeys"
+                                         Content="Hotkeys &amp; Accent"
+                                         Tag="&#xE765;"
+                                         GroupName="SettingsNav"
+                                         Style="{StaticResource NavTabStyle}"
+                                         Checked="OnNavTabChecked" />
+
+                            <RadioButton x:Name="NavSystem"
+                                         Content="System &amp; About"
+                                         Tag="&#xE713;"
+                                         GroupName="SettingsNav"
+                                         Style="{StaticResource NavTabStyle}"
+                                         Checked="OnNavTabChecked" />
+                        </StackPanel>
+
+                        <!-- Quick Live Island Test Actions -->
+                        <Border Grid.Row="1"
+                                Background="#17171E"
+                                BorderBrush="#1CFFFFFF"
+                                BorderThickness="1"
+                                CornerRadius="12"
+                                Padding="12">
+                            <StackPanel>
+                                <TextBlock Text="LIVE ISLAND"
+                                           Foreground="{StaticResource TextMutedBrush}"
+                                           FontSize="10"
+                                           FontWeight="Bold"
+                                           Margin="0,0,0,8" />
+                                <Button Content="Toggle Island"
+                                        Style="{StaticResource SecondaryActionButtonStyle}"
+                                        Margin="0,0,0,6"
+                                        Click="OnToggleIslandClick" />
+                                <Button Content="Preview Alert"
+                                        Style="{StaticResource PrimaryActionButtonStyle}"
+                                        Click="OnPreviewAlertClick" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <!-- Right Content Pane -->
+                <ScrollViewer x:Name="ContentScroller"
+                              Grid.Column="1"
+                              VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled"
+                              Padding="22,18,18,10">
+                    <Grid>
+                        <!-- PAGE 1: DISPLAY & POSITION -->
+                        <StackPanel x:Name="PageDisplay" Visibility="Visible">
+                            <TextBlock Text="Display &amp; Position" FontSize="20" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" />
+                            <TextBlock Text="Choose where the Dynamic Island sits and tune its geometry." Style="{StaticResource SettingsSectionSubStyle}" Margin="0,4,0,16" />
+
+                            <Border Style="{StaticResource SettingsCardStyle}">
+                                <StackPanel>
+                                    <TextBlock Text="Monitor Target" Style="{StaticResource SettingsSectionTitleStyle}" />
+                                    <TextBlock Text="Select a specific monitor or follow your Windows primary display automatically." Style="{StaticResource SettingsSectionSubStyle}" />
+                                    <ComboBox ItemsSource="{Binding Monitors}"
+                                              DisplayMemberPath="DisplayLabel"
+                                              SelectedValuePath="DeviceName"
+                                              SelectedValue="{Binding MonitorDeviceName}"
+                                              Style="{StaticResource ModernComboBoxStyle}" />
+                                </StackPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource SettingsCardStyle}">
+                                <StackPanel>
+                                    <TextBlock Text="Geometry &amp; Offsets" Style="{StaticResource SettingsSectionTitleStyle}" />
+                                    <TextBlock Text="Adjust placement relative to the top screen bezel." Style="{StaticResource SettingsSectionSubStyle}" />
+
+                                    <Grid Margin="0,4,0,12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="155" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="56" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Top Offset" VerticalAlignment="Center" Foreground="{StaticResource TextPrimaryBrush}" FontSize="13" />
+                                        <Slider Grid.Column="1" Minimum="0" Maximum="48" Value="{Binding TopOffset}" TickFrequency="1" IsSnapToTickEnabled="True" Style="{StaticResource ModernSliderStyle}" />
+                                        <TextBlock Grid.Column="2" Text="{Binding TopOffset, StringFormat='{}{0:F0} px'}" HorizontalAlignment="Right" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12.5" />
+                                    </Grid>
+
+                                    <Grid Margin="0,0,0,12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="155" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="56" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Horizontal Offset" VerticalAlignment="Center" Foreground="{StaticResource TextPrimaryBrush}" FontSize="13" />
+                                        <Slider Grid.Column="1" Minimum="-400" Maximum="400" Value="{Binding HorizontalOffset}" TickFrequency="2" IsSnapToTickEnabled="True" Style="{StaticResource ModernSliderStyle}" />
+                                        <TextBlock Grid.Column="2" Text="{Binding HorizontalOffset, StringFormat='{}{0:F0} px'}" HorizontalAlignment="Right" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12.5" />
+                                    </Grid>
+
+                                    <Grid Margin="0,0,0,12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="155" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="56" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Size Scale" VerticalAlignment="Center" Foreground="{StaticResource TextPrimaryBrush}" FontSize="13" />
+                                        <Slider Grid.Column="1" Minimum="0.75" Maximum="1.45" Value="{Binding SizeScale}" TickFrequency="0.05" IsSnapToTickEnabled="True" Style="{StaticResource ModernSliderStyle}" />
+                                        <TextBlock Grid.Column="2" Text="{Binding SizeScale, StringFormat='{}{0:F2}x'}" HorizontalAlignment="Right" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12.5" />
+                                    </Grid>
+
+                                    <Border Height="1" Background="#16FFFFFF" Margin="0,2,0,10" />
+
+                                    <CheckBox IsChecked="{Binding NotchMode}" Style="{StaticResource ModernToggleSwitchStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="Notch Mode" Foreground="{StaticResource TextPrimaryBrush}" FontSize="13" FontWeight="Medium" />
+                                            <TextBlock Text="Attach directly to the top screen edge instead of floating." Foreground="{StaticResource TextSecondaryBrush}" FontSize="11.5" />
+                                        </StackPanel>
+                                    </CheckBox>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+
+                        <!-- PAGE 2: MOTION & POWER -->
+                        <StackPanel x:Name="PageMotion" Visibility="Collapsed">
+                            <TextBlock Text="Motion &amp; Power" FontSize="20" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" />
+                            <TextBlock Text="Tune spring animation dynamics, hover responsiveness, and fullscreen behavior." Style="{StaticResource SettingsSectionSubStyle}" Margin="0,4,0,16" />
+
+                            <Border Style="{StaticResource SettingsCardStyle}">
+                                <StackPanel>
+                                    <TextBlock Text="Spring Physics" Style="{StaticResource SettingsSectionTitleStyle}" />
+                                    <Grid Margin="0,8,0,12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="155" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="56" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Animation Speed" VerticalAlignment="Center" Foreground="{StaticResource TextPrimaryBrush}" FontSize="13" />
+                                        <Slider Grid.Column="1" Minimum="0.5" Maximum="2.0" Value="{Binding AnimationSpeed}" TickFrequency="0.1" IsSnapToTickEnabled="True" Style="{StaticResource ModernSliderStyle}" />
+                                        <TextBlock Grid.Column="2" Text="{Binding AnimationSpeed, StringFormat='{}{0:F1}x'}" HorizontalAlignment="Right" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12.5" />
+                                    </Grid>
+
+                                    <CheckBox IsChecked="{Binding LowPowerMode}" Style="{StaticResource ModernToggleSwitchStyle}" Margin="0,4,0,10">
+                                        <StackPanel>
+                                            <TextBlock Text="Low Power Mode" Foreground="{StaticResource TextPrimaryBrush}" FontSize="13" FontWeight="Medium" />
+                                            <TextBlock Text="Cap animations to 30 fps and disable ambient glow/visualizer." Foreground="{StaticResource TextSecondaryBrush}" FontSize="11.5" />
+                                        </StackPanel>
+                                    </CheckBox>
+
+                                    <CheckBox IsChecked="{Binding HoverExpand}" Style="{StaticResource ModernToggleSwitchStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="Expand on Hover" Foreground="{StaticResource TextPrimaryBrush}" FontSize="13" FontWeight="Medium" />
+                                            <TextBlock Text="Open active cards when resting the cursor over the pill." Foreground="{StaticResource TextSecondaryBrush}" FontSize="11.5" />
+                                        </StackPanel>
+                                    </CheckBox>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource SettingsCardStyle}">
+                                <StackPanel>
+                                    <TextBlock Text="Fullscreen &amp; Windows OSD" Style="{StaticResource SettingsSectionTitleStyle}" />
+                                    <CheckBox IsChecked="{Binding AutoHideFullscreen}" Style="{StaticResource ModernToggleSwitchStyle}" Margin="0,8,0,10">
+                                        <StackPanel>
+                                            <TextBlock Text="Auto-hide in Fullscreen Apps &amp; Games" Foreground="{StaticResource TextPrimaryBrush}" FontSize="13" FontWeight="Medium" />
+                                            <TextBlock Text="Detect D3D fullscreen apps via SHQueryUserNotificationState." Foreground="{StaticResource TextSecondaryBrush}" FontSize="11.5" />
+                                        </StackPanel>
+                                    </CheckBox>
+
+                                    <CheckBox IsChecked="{Binding ShrinkInsteadOfHideInFullscreen}" Style="{StaticResource ModernToggleSwitchStyle}" Margin="0,0,0,10">
+                                        <StackPanel>
+                                            <TextBlock Text="Shrink Instead of Hiding" Foreground="{StaticResource TextPrimaryBrush}" FontSize="13" FontWeight="Medium" />
+                                            <TextBlock Text="Keep a tiny unobtrusive capsule visible during fullscreen apps." Foreground="{StaticResource TextSecondaryBrush}" FontSize="11.5" />
+                                        </StackPanel>
+                                    </CheckBox>
+
+                                    <CheckBox IsChecked="{Binding SuppressLegacyOsd}" Style="{StaticResource ModernToggleSwitchStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="Suppress Legacy Windows Volume OSD" Foreground="{StaticResource TextPrimaryBrush}" FontSize="13" FontWeight="Medium" />
+                                            <TextBlock Text="Hide the classic Windows 10 volume popup so Atoll replaces it cleanly." Foreground="{StaticResource TextSecondaryBrush}" FontSize="11.5" />
+                                        </StackPanel>
+                                    </CheckBox>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+
+                        <!-- PAGE 3: FEATURE MODULES -->
+                        <StackPanel x:Name="PageModules" Visibility="Collapsed">
+                            <TextBlock Text="Feature Modules" FontSize="20" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" />
+                            <TextBlock Text="Enable or disable individual Live Activity sources." Style="{StaticResource SettingsSectionSubStyle}" Margin="0,4,0,16" />
+
+                            <Border Style="{StaticResource SettingsCardStyle}">
+                                <UniformGrid Columns="2">
+                                    <CheckBox Margin="0,5,12,5" Style="{StaticResource ModernToggleSwitchStyle}" IsChecked="{Binding EnableMedia}">
+                                        <TextBlock Text="Media Player (GSMTC)" />
+                                    </CheckBox>
+                                    <CheckBox Margin="12,5,0,5" Style="{StaticResource ModernToggleSwitchStyle}" IsChecked="{Binding EnableTimer}">
+                                        <TextBlock Text="Timers &amp; Stopwatch" />
+                                    </CheckBox>
+                                    <CheckBox Margin="0,5,12,5" Style="{StaticResource ModernToggleSwitchStyle}" IsChecked="{Binding EnableCalls}">
+                                        <TextBlock Text="Calls &amp; Meetings" />
+                                    </CheckBox>
+                                    <CheckBox Margin="12,5,0,5" Style="{StaticResource ModernToggleSwitchStyle}" IsChecked="{Binding EnableNotifications}">
+                                        <TextBlock Text="System Notifications" />
+                                    </CheckBox>
+                                    <CheckBox Margin="0,5,12,5" Style="{StaticResource ModernToggleSwitchStyle}" IsChecked="{Binding EnableBattery}">
+                                        <TextBlock Text="Battery &amp; Charging" />
+                                    </CheckBox>
+                                    <CheckBox Margin="12,5,0,5" Style="{StaticResource ModernToggleSwitchStyle}" IsChecked="{Binding EnableBluetooth}">
+                                        <TextBlock Text="Bluetooth Connect" />
+                                    </CheckBox>
+                                    <CheckBox Margin="0,5,12,5" Style="{StaticResource ModernToggleSwitchStyle}" IsChecked="{Binding EnableOsd}">
+                                        <TextBlock Text="Volume &amp; Brightness" />
+                                    </CheckBox>
+                                    <CheckBox Margin="12,5,0,5" Style="{StaticResource ModernToggleSwitchStyle}" IsChecked="{Binding EnablePrivacy}">
+                                        <TextBlock Text="Privacy Dots (Cam/Mic)" />
+                                    </CheckBox>
+                                    <CheckBox Margin="0,5,12,5" Style="{StaticResource ModernToggleSwitchStyle}" IsChecked="{Binding EnableCalendar}">
+                                        <TextBlock Text="Calendar Countdown" />
+                                    </CheckBox>
+                                    <CheckBox Margin="12,5,0,5" Style="{StaticResource ModernToggleSwitchStyle}" IsChecked="{Binding EnableFileShelf}">
+                                        <TextBlock Text="File Shelf (Drag &amp; Drop)" />
+                                    </CheckBox>
+                                    <CheckBox Margin="0,5,12,5" Style="{StaticResource ModernToggleSwitchStyle}" IsChecked="{Binding EnableQuickActions}">
+                                        <TextBlock Text="Quick Actions" />
+                                    </CheckBox>
+                                    <CheckBox Margin="12,5,0,5" Style="{StaticResource ModernToggleSwitchStyle}" IsChecked="{Binding EnableWeatherGlance}">
+                                        <TextBlock Text="Weather &amp; Clock Glance" />
+                                    </CheckBox>
+                                </UniformGrid>
+                            </Border>
+
+                            <Border Style="{StaticResource SettingsCardStyle}">
+                                <StackPanel>
+                                    <TextBlock Text="Weather Glance Preferences" Style="{StaticResource SettingsSectionTitleStyle}" />
+                                    <TextBlock Text="Used only when Weather &amp; Clock Glance is enabled." Style="{StaticResource SettingsSectionSubStyle}" />
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="120" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="City / Location" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" />
+                                        <TextBox Grid.Column="1"
+                                                 Text="{Binding WeatherLocationQuery, UpdateSourceTrigger=LostFocus}"
+                                                 Style="{StaticResource ModernTextBoxStyle}"
+                                                 Margin="0,0,14,0" />
+                                        <CheckBox Grid.Column="2"
+                                                  Content="Celsius (°C)"
+                                                  IsChecked="{Binding UseCelsius}"
+                                                  Style="{StaticResource ModernToggleSwitchStyle}" />
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+
+                        <!-- PAGE 4: HOTKEYS & ACCENT -->
+                        <StackPanel x:Name="PageHotkeys" Visibility="Collapsed">
+                            <TextBlock Text="Hotkeys &amp; Accent" FontSize="20" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" />
+                            <TextBlock Text="Customize global keyboard shortcut and accent highlights." Style="{StaticResource SettingsSectionSubStyle}" Margin="0,4,0,16" />
+
+                            <Border Style="{StaticResource SettingsCardStyle}">
+                                <StackPanel>
+                                    <TextBlock Text="Accent Theme" Style="{StaticResource SettingsSectionTitleStyle}" />
+                                    <TextBlock Text="Pick a preset color or enter any custom #RRGGBB hex code." Style="{StaticResource SettingsSectionSubStyle}" />
+
+                                    <StackPanel Orientation="Horizontal" Margin="0,2,0,14">
+                                        <ItemsControl ItemsSource="{Binding AccentPresets}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel Orientation="Horizontal" />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Button Tag="{Binding Hex}"
+                                                            ToolTip="{Binding Name}"
+                                                            Cursor="Hand"
+                                                            Margin="0,0,10,0"
+                                                            Click="OnAccentSwatchClick">
+                                                        <Button.Template>
+                                                            <ControlTemplate TargetType="Button">
+                                                                <Border x:Name="SwatchRing"
+                                                                        Width="32"
+                                                                        Height="32"
+                                                                        CornerRadius="16"
+                                                                        BorderBrush="#36FFFFFF"
+                                                                        BorderThickness="1.5"
+                                                                        Padding="3"
+                                                                        Background="Transparent">
+                                                                    <Ellipse Fill="{Binding Hex}" />
+                                                                </Border>
+                                                                <ControlTemplate.Triggers>
+                                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                                        <Setter TargetName="SwatchRing" Property="BorderBrush" Value="#FFFFFF" />
+                                                                    </Trigger>
+                                                                </ControlTemplate.Triggers>
+                                                            </ControlTemplate>
+                                                        </Button.Template>
+                                                    </Button>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="150" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Custom Hex" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" />
+                                        <Border Grid.Column="1"
+                                                Width="24"
+                                                Height="24"
+                                                CornerRadius="6"
+                                                Background="{DynamicResource AccentPrimaryBrush}"
+                                                BorderBrush="#36FFFFFF"
+                                                BorderThickness="1"
+                                                Margin="0,0,10,0" />
+                                        <TextBox Grid.Column="2"
+                                                 Text="{Binding AccentColorHex, UpdateSourceTrigger=PropertyChanged}"
+                                                 Style="{StaticResource ModernTextBoxStyle}" />
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource SettingsCardStyle}">
+                                <StackPanel>
+                                    <TextBlock Text="Global Toggle Shortcut" Style="{StaticResource SettingsSectionTitleStyle}" />
+                                    <TextBlock Text="Click inside the box and press your desired key combination." Style="{StaticResource SettingsSectionSubStyle}" />
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox x:Name="HotkeyCaptureBox"
+                                                 Text="{Binding ToggleExpandHotkey, Mode=OneWay}"
+                                                 IsReadOnly="True"
+                                                 Style="{StaticResource ModernTextBoxStyle}"
+                                                 PreviewKeyDown="OnHotkeyBoxPreviewKeyDown"
+                                                 GotKeyboardFocus="OnHotkeyBoxGotFocus"
+                                                 LostKeyboardFocus="OnHotkeyBoxLostFocus" />
+                                        <Button Grid.Column="1"
+                                                Content="Default"
+                                                Style="{StaticResource SecondaryActionButtonStyle}"
+                                                Margin="10,0,0,0"
+                                                Click="OnResetHotkeyClick" />
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+
+                        <!-- PAGE 5: SYSTEM & ABOUT -->
+                        <StackPanel x:Name="PageSystem" Visibility="Collapsed">
+                            <TextBlock Text="System &amp; About" FontSize="20" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" />
+                            <TextBlock Text="Startup integration, diagnostics HUD, and application info." Style="{StaticResource SettingsSectionSubStyle}" Margin="0,4,0,16" />
+
+                            <Border Style="{StaticResource SettingsCardStyle}">
+                                <StackPanel>
+                                    <TextBlock Text="Startup &amp; Diagnostics" Style="{StaticResource SettingsSectionTitleStyle}" />
+                                    <CheckBox IsChecked="{Binding StartWithWindows}" Style="{StaticResource ModernToggleSwitchStyle}" Margin="0,8,0,10">
+                                        <StackPanel>
+                                            <TextBlock Text="Start Atoll with Windows" Foreground="{StaticResource TextPrimaryBrush}" FontSize="13" FontWeight="Medium" />
+                                            <TextBlock Text="Registers a per-user HKCU Run key for silent launch on login." Foreground="{StaticResource TextSecondaryBrush}" FontSize="11.5" />
+                                        </StackPanel>
+                                    </CheckBox>
+
+                                    <CheckBox IsChecked="{Binding DiagnosticsVisible}" Style="{StaticResource ModernToggleSwitchStyle}" Margin="0,0,0,14">
+                                        <StackPanel>
+                                            <TextBlock Text="Show Performance Diagnostics Overlay" Foreground="{StaticResource TextPrimaryBrush}" FontSize="13" FontWeight="Medium" />
+                                            <TextBlock Text="Live CPU %, working set RAM, FPS, and spring count HUD." Foreground="{StaticResource TextSecondaryBrush}" FontSize="11.5" />
+                                        </StackPanel>
+                                    </CheckBox>
+
+                                    <StackPanel Orientation="Horizontal">
+                                        <Button Content="Open Log Folder" Style="{StaticResource SecondaryActionButtonStyle}" Click="OnOpenLogsClick" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource SettingsCardStyle}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Image Source="/Resources/Atoll.ico" Width="46" Height="46" RenderOptions.BitmapScalingMode="HighQuality" />
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="14,0,0,0">
+                                        <TextBlock Text="Atoll Dynamic Island" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" />
+                                        <TextBlock Text="{Binding AppVersion, StringFormat='Version {0} · Native C# / .NET 8 WPF'}" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0" />
+                                        <TextBlock Text="Zero-idle-CPU spring morphing, GSMTC media, WASAPI audio, Win32 topmost click-through." FontSize="11.5" Foreground="{StaticResource TextMutedBrush}" Margin="0,4,0,0" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </StackPanel>
+                    </Grid>
+                </ScrollViewer>
+            </Grid>
+
+            <!-- Footer Bar -->
+            <Border Grid.Row="2"
+                    Background="#0F0F13"
+                    BorderBrush="#16FFFFFF"
+                    BorderThickness="0,1,0,0"
+                    CornerRadius="0,0,10,10"
+                    Padding="18,0">
+                <Grid>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Ellipse Width="7" Height="7" Fill="{DynamicResource AccentPrimaryBrush}" Margin="0,0,8,0" />
+                        <TextBlock Text="Changes are saved and applied instantly" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12" VerticalAlignment="Center" />
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                        <Button Content="Reset Defaults" Style="{StaticResource SecondaryActionButtonStyle}" Margin="0,0,8,0" Click="OnResetDefaultsClick" />
+                        <Button Content="Done" Style="{StaticResource PrimaryActionButtonStyle}" Width="78" Click="OnCloseClick" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

@@ -1,0 +1,94 @@
+## .NET / MSBuild / WPF
+bin/
+obj/
+out/
+publish/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Ll]og/
+[Ll]ogs/
+*_wpftmp.csproj
+*.Cache
+*.AssemblyInfoInputs.cache
+*.assets.cache
+
+## Distribution & Installer Outputs
+dist/
+*.exe
+*.dll
+*.pdb
+*.msi
+*.msix
+*.msixbundle
+*.appx
+*.appxbundle
+
+## User-specific Visual Studio & IDE Files
+.vs/
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/settings.json
+!.vscode/tasks.json
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.sln.iml
+*.userprefs
+*.DotSettings.user
+
+## NuGet & Package Restores
+packages/
+*.nupkg
+*.snupkg
+project.lock.json
+project.fragment.lock.json
+*.nuget.props
+*.nuget.targets
+
+## Test, Coverage & Benchmark Artifacts
+TestResults/
+BenchmarkDotNet.Artifacts/
+coverage*.json
+coverage*.xml
+*.coverage
+*.coveragexml
+*.trx
+*.visualstate.xml
+TestResult.xml
+
+## Secrets & Local Env Overrides
+.env
+.env.*
+!.env.example
+appsettings.Development.json
+appsettings.Local.json
+secrets.json
+
+## Logs, Temp & Backups
+*.log
+*.tmp
+*.temp
+*.bak
+*.orig
+*.swp
+*~
+
+## OS Artifacts
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+desktop.ini
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+._*
