@@ -90,3 +90,35 @@ public static class IslandGeometry
     }
 }
 
+public sealed class SquircleGeometryCache
+{
+    private const double Tolerance = 0.05;
+    private double _x = double.NaN;
+    private double _y = double.NaN;
+    private double _width = double.NaN;
+    private double _height = double.NaN;
+    private double _radius = double.NaN;
+    private StreamGeometry? _cached;
+
+    public StreamGeometry GetOrCreate(double x, double y, double width, double height, double radius)
+    {
+        if (_cached is not null &&
+            Math.Abs(_x - x) < Tolerance &&
+            Math.Abs(_y - y) < Tolerance &&
+            Math.Abs(_width - width) < Tolerance &&
+            Math.Abs(_height - height) < Tolerance &&
+            Math.Abs(_radius - radius) < Tolerance)
+        {
+            return _cached;
+        }
+
+        _x = x;
+        _y = y;
+        _width = width;
+        _height = height;
+        _radius = radius;
+        _cached = IslandGeometry.CreateSquircle(x, y, width, height, radius);
+        return _cached;
+    }
+}
+

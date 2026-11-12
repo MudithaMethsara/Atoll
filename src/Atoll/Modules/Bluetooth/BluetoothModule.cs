@@ -34,6 +34,7 @@ public sealed class BluetoothModule : IIslandModule
     private const string BluetoothBatteryPnpProp = "{104EA319-6EE2-4701-BD47-8DDBF425BBE5} 2";
     private const string BluetoothAqs = "System.Devices.Aep.ProtocolId:=\"{e0cbf06c-cd8b-4647-bb8a-263b43f0f974}\"";
 
+    private readonly object _sync = new();
     private ModuleContext? _ctx;
     private DeviceWatcher? _watcher;
     private readonly Dictionary<string, bool> _connectedStates = new(StringComparer.OrdinalIgnoreCase);
@@ -88,12 +89,20 @@ public sealed class BluetoothModule : IIslandModule
             _watcher.Added += OnDeviceAdded;
             _watcher.Updated += OnDeviceUpdated;
             _watcher.Removed += OnDeviceRemoved;
-            _watcher.EnumerationCompleted += (_, _) => _initialEnumerationComplete = true;
+            _watcher.EnumerationCompleted += OnEnumerationCompleted;
             _watcher.Start();
         }
         catch (Exception ex)
         {
             LoggingService.Instance.Warn("Bluetooth", "Bluetooth device watcher unavailable.", ex);
+        }
+    }
+
+    private void OnEnumerationCompleted(DeviceWatcher sender, object args)
+    {
+        lock (_sync)
+        {
+            _initialEnumerationComplete = true;
         }
     }
 
@@ -105,6 +114,7 @@ public sealed class BluetoothModule : IIslandModule
             _watcher.Added -= OnDeviceAdded;
             _watcher.Updated -= OnDeviceUpdated;
             _watcher.Removed -= OnDeviceRemoved;
+            _watcher.EnumerationCompleted -= OnEnumerationCompleted;
             if (_watcher.Status is DeviceWatcherStatus.Started or DeviceWatcherStatus.EnumerationCompleted)
             {
                 _watcher.Stop();
@@ -115,15 +125,23 @@ public sealed class BluetoothModule : IIslandModule
             // Ignore
         }
         _watcher = null;
-        _initialEnumerationComplete = false;
-        _connectedStates.Clear();
+        lock (_sync)
+        {
+            _initialEnumerationComplete = false;
+            _connectedStates.Clear();
+        }
     }
 
     private void OnDeviceAdded(DeviceWatcher sender, DeviceInformation args)
     {
         bool connected = TryGetBool(args.Properties, AepConnectedProp);
-        _connectedStates[args.Id] = connected;
-        if (_initialEnumerationComplete && connected && !string.IsNullOrWhiteSpace(args.Name))
+        bool ready;
+        lock (_sync)
+        {
+            _connectedStates[args.Id] = connected;
+            ready = _initialEnumerationComplete;
+        }
+        if (ready && connected && !string.IsNullOrWhiteSpace(args.Name))
         {
             int? battery = TryGetBattery(args.Properties);
             DispatchConnectAlert(args.Name, battery);
@@ -134,11 +152,16 @@ public sealed class BluetoothModule : IIslandModule
     {
         if (!args.Properties.ContainsKey(AepConnectedProp)) return;
 
-        bool wasConnected = _connectedStates.TryGetValue(args.Id, out bool prev) && prev;
         bool nowConnected = TryGetBool(args.Properties, AepConnectedProp);
-        _connectedStates[args.Id] = nowConnected;
+        bool shouldAlert;
+        lock (_sync)
+        {
+            bool wasConnected = _connectedStates.TryGetValue(args.Id, out bool prev) && prev;
+            _connectedStates[args.Id] = nowConnected;
+            shouldAlert = _initialEnumerationComplete && !wasConnected && nowConnected;
+        }
 
-        if (_initialEnumerationComplete && !wasConnected && nowConnected)
+        if (shouldAlert)
         {
             _ = FetchAndShowDeviceAsync(args.Id);
         }
@@ -146,7 +169,10 @@ public sealed class BluetoothModule : IIslandModule
 
     private void OnDeviceRemoved(DeviceWatcher sender, DeviceInformationUpdate args)
     {
-        _connectedStates.Remove(args.Id);
+        lock (_sync)
+        {
+            _connectedStates.Remove(args.Id);
+        }
     }
 
     private async Task FetchAndShowDeviceAsync(string id)

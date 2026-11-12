@@ -5,13 +5,32 @@ public sealed class SpringSolver
     private const double MaxStepDt = 1.0 / 240.0;
     private const double MaxFrameDt = 0.05;
 
+    private double _stiffness;
+    private double _dampingRatio;
+    private double _mass;
+    private double _dampingCoeff;
+
     public double Position { get; private set; }
     public double Velocity { get; private set; }
     public double Target { get; private set; }
 
-    public double Stiffness { get; set; }
-    public double DampingRatio { get; set; }
-    public double Mass { get; set; }
+    public double Stiffness
+    {
+        get => _stiffness;
+        set { _stiffness = value; UpdateDampingCoeff(); }
+    }
+
+    public double DampingRatio
+    {
+        get => _dampingRatio;
+        set { _dampingRatio = Math.Clamp(value, 0.2, 2.0); UpdateDampingCoeff(); }
+    }
+
+    public double Mass
+    {
+        get => _mass;
+        set { _mass = Math.Max(0.1, value); UpdateDampingCoeff(); }
+    }
 
     public double PositionEpsilon { get; set; }
     public double VelocityEpsilon { get; set; }
@@ -31,11 +50,17 @@ public sealed class SpringSolver
         Position = initialValue;
         Target = initialValue;
         Velocity = 0.0;
-        Stiffness = stiffness;
-        DampingRatio = Math.Clamp(dampingRatio, 0.2, 2.0);
-        Mass = Math.Max(0.1, mass);
+        _stiffness = stiffness;
+        _dampingRatio = Math.Clamp(dampingRatio, 0.2, 2.0);
+        _mass = Math.Max(0.1, mass);
         PositionEpsilon = positionEpsilon;
         VelocityEpsilon = velocityEpsilon;
+        UpdateDampingCoeff();
+    }
+
+    private void UpdateDampingCoeff()
+    {
+        _dampingCoeff = 2.0 * _dampingRatio * Math.Sqrt(_stiffness * _mass);
     }
 
     public void SetTarget(double target)
@@ -67,7 +92,7 @@ public sealed class SpringSolver
         double remaining = Math.Clamp(dt, 0.0, MaxFrameDt);
         if (remaining <= 0.0) return true;
 
-        double c = 2.0 * DampingRatio * Math.Sqrt(Stiffness * Mass);
+        double c = _dampingCoeff;
 
         while (remaining > 0.0)
         {

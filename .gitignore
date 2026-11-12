@@ -19,14 +19,21 @@ bld/
 
 ## Distribution & Installer Outputs
 dist/
+AppPackages/
+BundleArtifacts/
+PublishProfiles/
 *.exe
 *.dll
 *.pdb
 *.msi
 *.msix
 *.msixbundle
+*.msixupload
 *.appx
 *.appxbundle
+*.appxsym
+*.cer
+*.pfx
 
 ## User-specific Visual Studio & IDE Files
 .vs/

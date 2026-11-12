@@ -46,14 +46,28 @@ public partial class IslandWindow : System.Windows.Window
     private readonly OsdModule _osdModule;
 
     private readonly Action _openSettingsAction;
-    private DispatcherTimer? _longPressTimer;
-    private DispatcherTimer? _hoverExpandTimer;
+    private readonly DispatcherTimer _longPressTimer;
+    private readonly DispatcherTimer _hoverExpandTimer;
+    private readonly SquircleGeometryCache _mainPillGeoCache = new();
+    private readonly SquircleGeometryCache _outerShadowGeoCache = new();
+    private readonly SquircleGeometryCache _innerShadowGeoCache = new();
+    private readonly SquircleGeometryCache _bubbleGeoCache = new();
+    private readonly SquircleGeometryCache _bubbleShadowGeoCache = new();
+    private readonly Dictionary<Color, SolidColorBrush> _frozenBrushes = new();
+
     private Point _pointerDownPos;
     private bool _isPointerDown;
     private bool _longPressTriggered;
     private bool _isSeekingMedia;
     private bool _forceQuickActionsTab;
+    private bool _bubbleCollapsed = true;
     private IIslandActivity? _observedActivity;
+    private IslandState _lastVisualState = IslandState.Idle;
+    private string? _lastVisualActivityId;
+    private Color _lastGlowColor;
+    private Color _lastCompactGlyphBgColor;
+    private Color _lastAlertIconBgColor;
+    private Color _lastAlertSliderColor;
 
     private Rect _hitPillRect = new(230, 8, 120, 34);
     private double _hitPillRadius = 17;
@@ -98,7 +112,13 @@ public partial class IslandWindow : System.Windows.Window
         _openSettingsAction = openSettingsAction;
 
         _windowController = new IslandWindowController(this, _monitorService, IsDipPointInsidePill);
-        _windowController.DisplayOrDpiChanged += (_, _) => RepositionWindow();
+        _windowController.DisplayOrDpiChanged += OnDisplayOrDpiChanged;
+
+        _hoverExpandTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(260) };
+        _hoverExpandTimer.Tick += OnHoverExpandTimerTick;
+
+        _longPressTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(380) };
+        _longPressTimer.Tick += OnLongPressTimerTick;
 
         _animator.SpeedMultiplier = _settingsService.Current.AnimationSpeed;
         _animator.LowPowerMode = _settingsService.Current.LowPowerMode;
@@ -107,9 +127,9 @@ public partial class IslandWindow : System.Windows.Window
 
         _stateMachine.StateChanged += OnIslandStateChanged;
         _activityManager.ActivitiesChanged += OnActivitiesChanged;
-        _privacyModule.PrivacyDotsChanged += (_, _) => Dispatcher.BeginInvoke(UpdatePrivacyDots);
-        _quickActionsModule.StateUpdated += (_, _) => Dispatcher.BeginInvoke(BindQuickActionsPanel);
-        _glanceModule.GlanceUpdated += (_, _) => Dispatcher.BeginInvoke(BindQuickActionsPanel);
+        _privacyModule.PrivacyDotsChanged += OnPrivacyDotsChanged;
+        _quickActionsModule.StateUpdated += OnQuickActionsOrGlanceUpdated;
+        _glanceModule.GlanceUpdated += OnQuickActionsOrGlanceUpdated;
         _settingsService.SettingsChanged += OnSettingsChanged;
         _fullscreenDetector.FullscreenChanged += OnFullscreenChanged;
 
@@ -241,9 +261,53 @@ public partial class IslandWindow : System.Windows.Window
         }
     }
 
+    private void OnDisplayOrDpiChanged(object? sender, EventArgs e) => RepositionWindow();
+    private void OnPrivacyDotsChanged(object? sender, EventArgs e) => Dispatcher.BeginInvoke(UpdatePrivacyDots);
+    private void OnQuickActionsOrGlanceUpdated(object? sender, EventArgs e) => Dispatcher.BeginInvoke(BindQuickActionsPanel);
+
     private void OnObservedActivityPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (e.PropertyName == nameof(MediaActivity.Spectrum))
+        {
+            Dispatcher.BeginInvoke(UpdateMediaSpectrumOnly);
+            return;
+        }
+
+        if (e.PropertyName is nameof(MediaActivity.Position) or nameof(MediaActivity.PositionText) or nameof(MediaActivity.ProgressRatio))
+        {
+            Dispatcher.BeginInvoke(UpdateMediaProgressOnly);
+            return;
+        }
+
         Dispatcher.BeginInvoke(RefreshActiveViewData);
+    }
+
+    private void UpdateMediaSpectrumOnly()
+    {
+        if (_observedActivity is not MediaActivity media) return;
+        var state = _stateMachine.CurrentState;
+        if (state is IslandState.Compact or IslandState.Minimal)
+        {
+            CompactVisualizer.Bands = media.Spectrum;
+            CompactVisualizer.IsPlaying = media.IsPlaying;
+        }
+        else if (state == IslandState.Expanded && !_forceQuickActionsTab)
+        {
+            MediaExpandedVisualizer.Bands = media.Spectrum;
+            MediaExpandedVisualizer.IsPlaying = media.IsPlaying;
+        }
+    }
+
+    private void UpdateMediaProgressOnly()
+    {
+        if (_observedActivity is not MediaActivity media) return;
+        if (_stateMachine.CurrentState != IslandState.Expanded || _forceQuickActionsTab) return;
+        MediaPosText.Text = media.PositionText;
+        MediaDurText.Text = media.DurationText;
+        if (!_isSeekingMedia)
+        {
+            MediaSeekSlider.Value = media.ProgressRatio;
+        }
     }
 
     private void ApplyStateLayout(IslandState state, bool snapImmediately)
@@ -328,6 +392,14 @@ public partial class IslandWindow : System.Windows.Window
             }
         }
 
+        string? currentVisualId = state == IslandState.Alert
+            ? _stateMachine.ActiveAlertActivity?.Id
+            : _activityManager.PrimaryActivity?.Id;
+        bool visualChanged = state != _lastVisualState ||
+                             !string.Equals(currentVisualId, _lastVisualActivityId, StringComparison.Ordinal);
+        _lastVisualState = state;
+        _lastVisualActivityId = currentVisualId;
+
         UpdateActivePanelVisibility(state);
         RefreshActiveViewData();
 
@@ -337,7 +409,7 @@ public partial class IslandWindow : System.Windows.Window
         }
         else
         {
-            _animator.SetLayoutTargets(targetW, targetH, targetR, baseTop, bubbleSize, bubbleGap, bubbleOpacity, pillOpacity, triggerContentStagger: true);
+            _animator.SetLayoutTargets(targetW, targetH, targetR, baseTop, bubbleSize, bubbleGap, bubbleOpacity, pillOpacity, triggerContentStagger: visualChanged);
         }
     }
 
@@ -358,9 +430,9 @@ public partial class IslandWindow : System.Windows.Window
         PillShadowOuter.Opacity = frame.PillOpacity;
         PillShadowInner.Opacity = frame.PillOpacity;
 
-        MainPillPath.Data = IslandGeometry.CreateSquircle(pillX, pillY, w, h, r);
-        PillShadowOuter.Data = IslandGeometry.CreateSquircle(pillX - 4, pillY + 2, w + 8, h + 8, r + 4);
-        PillShadowInner.Data = IslandGeometry.CreateSquircle(pillX - 2, pillY + 1, w + 4, h + 4, r + 2);
+        MainPillPath.Data = _mainPillGeoCache.GetOrCreate(pillX, pillY, w, h, r);
+        PillShadowOuter.Data = _outerShadowGeoCache.GetOrCreate(pillX - 4, pillY + 2, w + 8, h + 8, r + 4);
+        PillShadowInner.Data = _innerShadowGeoCache.GetOrCreate(pillX - 2, pillY + 1, w + 4, h + 4, r + 2);
 
         Canvas.SetLeft(MainContentHost, pillX);
         Canvas.SetTop(MainContentHost, pillY);
@@ -392,24 +464,29 @@ public partial class IslandWindow : System.Windows.Window
             _hitBubbleRect = new Rect(bX, bY, bSize, bSize);
             _hitBubbleRadius = bSize * 0.5;
 
-            DetachedBubblePath.Visibility = Visibility.Visible;
-            BubbleShadow.Visibility = Visibility.Visible;
-            BubbleContentHost.Visibility = Visibility.Visible;
+            if (_bubbleCollapsed)
+            {
+                _bubbleCollapsed = false;
+                DetachedBubblePath.Visibility = Visibility.Visible;
+                BubbleShadow.Visibility = Visibility.Visible;
+                BubbleContentHost.Visibility = Visibility.Visible;
+            }
 
             DetachedBubblePath.Opacity = frame.BubbleOpacity * frame.PillOpacity;
             BubbleShadow.Opacity = frame.BubbleOpacity * frame.PillOpacity;
             BubbleContentHost.Opacity = frame.BubbleOpacity * frame.PillOpacity;
 
-            DetachedBubblePath.Data = IslandGeometry.CreateSquircle(bX, bY, bSize, bSize, bSize * 0.5);
-            BubbleShadow.Data = IslandGeometry.CreateSquircle(bX - 2, bY + 1, bSize + 4, bSize + 4, (bSize + 4) * 0.5);
+            DetachedBubblePath.Data = _bubbleGeoCache.GetOrCreate(bX, bY, bSize, bSize, bSize * 0.5);
+            BubbleShadow.Data = _bubbleShadowGeoCache.GetOrCreate(bX - 2, bY + 1, bSize + 4, bSize + 4, (bSize + 4) * 0.5);
 
             Canvas.SetLeft(BubbleContentHost, bX);
             Canvas.SetTop(BubbleContentHost, bY);
             BubbleContentHost.Width = bSize;
             BubbleContentHost.Height = bSize;
         }
-        else
+        else if (!_bubbleCollapsed)
         {
+            _bubbleCollapsed = true;
             _hitBubbleRect = Rect.Empty;
             DetachedBubblePath.Visibility = Visibility.Collapsed;
             BubbleShadow.Visibility = Visibility.Collapsed;
@@ -485,7 +562,27 @@ public partial class IslandWindow : System.Windows.Window
 
     private void UpdateGlowColor(Color c)
     {
+        if (_lastGlowColor == c) return;
+        _lastGlowColor = c;
         GlowStopInner.Color = Color.FromArgb(95, c.R, c.G, c.B);
+    }
+
+    private SolidColorBrush GetFrozenBrush(Color color)
+    {
+        if (_frozenBrushes.TryGetValue(color, out var existing))
+        {
+            return existing;
+        }
+
+        if (_frozenBrushes.Count >= 32)
+        {
+            _frozenBrushes.Clear();
+        }
+
+        var brush = new SolidColorBrush(color);
+        brush.Freeze();
+        _frozenBrushes[color] = brush;
+        return brush;
     }
 
     private void BindCompactPanel(IIslandActivity activity)
@@ -501,7 +598,12 @@ public partial class IslandWindow : System.Windows.Window
             CompactThumbBorder.Visibility = Visibility.Collapsed;
             CompactGlyphBg.Visibility = Visibility.Visible;
             CompactGlyphText.Text = activity.Glyph;
-            CompactGlyphBg.Background = new SolidColorBrush(Color.FromArgb(55, activity.AccentColor.R, activity.AccentColor.G, activity.AccentColor.B));
+            Color bgColor = Color.FromArgb(55, activity.AccentColor.R, activity.AccentColor.G, activity.AccentColor.B);
+            if (_lastCompactGlyphBgColor != bgColor)
+            {
+                _lastCompactGlyphBgColor = bgColor;
+                CompactGlyphBg.Background = GetFrozenBrush(bgColor);
+            }
         }
 
         CompactTitleText.Text = activity.Title;
@@ -571,7 +673,12 @@ public partial class IslandWindow : System.Windows.Window
             AlertThumbBorder.Visibility = Visibility.Collapsed;
             AlertIconBg.Visibility = Visibility.Visible;
             AlertGlyphText.Text = alert.Glyph;
-            AlertIconBg.Background = new SolidColorBrush(Color.FromArgb(55, alert.AccentColor.R, alert.AccentColor.G, alert.AccentColor.B));
+            Color bgColor = Color.FromArgb(55, alert.AccentColor.R, alert.AccentColor.G, alert.AccentColor.B);
+            if (_lastAlertIconBgColor != bgColor)
+            {
+                _lastAlertIconBgColor = bgColor;
+                AlertIconBg.Background = GetFrozenBrush(bgColor);
+            }
         }
 
         AlertTitleText.Text = alert.Title;
@@ -581,7 +688,11 @@ public partial class IslandWindow : System.Windows.Window
         {
             AlertOsdSlider.Visibility = Visibility.Visible;
             AlertOsdSlider.Value = osd.ValuePercent;
-            AlertOsdSlider.Foreground = new SolidColorBrush(osd.AccentColor);
+            if (_lastAlertSliderColor != osd.AccentColor)
+            {
+                _lastAlertSliderColor = osd.AccentColor;
+                AlertOsdSlider.Foreground = GetFrozenBrush(osd.AccentColor);
+            }
             AlertTrailingText.Text = osd.ValueText;
             AlertRing.Visibility = Visibility.Collapsed;
         }
@@ -694,26 +805,37 @@ public partial class IslandWindow : System.Windows.Window
 
     // --- Gesture Handlers ---
 
+    private void OnHoverExpandTimerTick(object? sender, EventArgs e)
+    {
+        _hoverExpandTimer.Stop();
+        if (IsMouseOver) _stateMachine.Expand();
+    }
+
+    private void OnLongPressTimerTick(object? sender, EventArgs e)
+    {
+        _longPressTimer.Stop();
+        if (_isPointerDown)
+        {
+            _longPressTriggered = true;
+            _animator.SetScaleTarget(1.02, impulseVelocity: 0.4);
+            _stateMachine.Expand();
+        }
+    }
+
     private void OnPillMouseEnter(object sender, MouseEventArgs e)
     {
         _animator.SetScaleTarget(1.035);
         if (_settingsService.Current.HoverExpand && _stateMachine.CurrentState is IslandState.Idle or IslandState.Compact or IslandState.Minimal)
         {
-            _hoverExpandTimer?.Stop();
-            _hoverExpandTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(260) };
-            _hoverExpandTimer.Tick += (_, _) =>
-            {
-                _hoverExpandTimer.Stop();
-                if (IsMouseOver) _stateMachine.Expand();
-            };
+            _hoverExpandTimer.Stop();
             _hoverExpandTimer.Start();
         }
     }
 
     private void OnPillMouseLeave(object sender, MouseEventArgs e)
     {
-        _hoverExpandTimer?.Stop();
-        _longPressTimer?.Stop();
+        _hoverExpandTimer.Stop();
+        _longPressTimer.Stop();
         _isPointerDown = false;
         _animator.SetScaleTarget(1.0);
     }
@@ -727,18 +849,7 @@ public partial class IslandWindow : System.Windows.Window
         _pointerDownPos = e.GetPosition(this);
         _animator.SetScaleTarget(0.95);
 
-        _longPressTimer?.Stop();
-        _longPressTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(380) };
-        _longPressTimer.Tick += (_, _) =>
-        {
-            _longPressTimer.Stop();
-            if (_isPointerDown)
-            {
-                _longPressTriggered = true;
-                _animator.SetScaleTarget(1.02, impulseVelocity: 0.4);
-                _stateMachine.Expand();
-            }
-        };
+        _longPressTimer.Stop();
         _longPressTimer.Start();
     }
 
@@ -748,7 +859,7 @@ public partial class IslandWindow : System.Windows.Window
         Point cur = e.GetPosition(this);
         if (Math.Abs(cur.X - _pointerDownPos.X) > 12)
         {
-            _longPressTimer?.Stop();
+            _longPressTimer.Stop();
         }
     }
 
@@ -756,7 +867,7 @@ public partial class IslandWindow : System.Windows.Window
     {
         if (!_isPointerDown) return;
         _isPointerDown = false;
-        _longPressTimer?.Stop();
+        _longPressTimer.Stop();
         _animator.SetScaleTarget(IsMouseOver ? 1.03 : 1.0);
 
         if (_longPressTriggered) return;
@@ -978,8 +1089,21 @@ public partial class IslandWindow : System.Windows.Window
 
     protected override void OnClosed(EventArgs e)
     {
-        _longPressTimer?.Stop();
-        _hoverExpandTimer?.Stop();
+        _longPressTimer.Stop();
+        _longPressTimer.Tick -= OnLongPressTimerTick;
+        _hoverExpandTimer.Stop();
+        _hoverExpandTimer.Tick -= OnHoverExpandTimerTick;
+
+        if (_observedActivity is not null)
+        {
+            _observedActivity.PropertyChanged -= OnObservedActivityPropertyChanged;
+            _observedActivity = null;
+        }
+
+        _windowController.DisplayOrDpiChanged -= OnDisplayOrDpiChanged;
+        _privacyModule.PrivacyDotsChanged -= OnPrivacyDotsChanged;
+        _quickActionsModule.StateUpdated -= OnQuickActionsOrGlanceUpdated;
+        _glanceModule.GlanceUpdated -= OnQuickActionsOrGlanceUpdated;
         _animator.FrameUpdated -= OnAnimatorFrameUpdated;
         _animator.Settled -= OnAnimatorSettled;
         _stateMachine.StateChanged -= OnIslandStateChanged;

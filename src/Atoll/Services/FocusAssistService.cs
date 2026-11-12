@@ -9,15 +9,16 @@ public sealed class FocusAssistService
     private const string GlobalToastsValueName = "NOC_GLOBAL_SETTING_TOASTS_ENABLED";
 
     // WNF_SHEL_QUIETHOURS_ACTIVE_PROFILE_CHANGED
-    private static ulong WnfQuietHoursProfile = 0x0D83063EA3BE0875UL;
+    private const ulong WnfQuietHoursProfile = 0x0D83063EA3BE0875UL;
 
     public bool IsDoNotDisturbEnabled()
     {
         try
         {
+            ulong stateName = WnfQuietHoursProfile;
             uint size = 4;
             int status = Win32Interop.NtQueryWnfStateData(
-                ref WnfQuietHoursProfile,
+                ref stateName,
                 IntPtr.Zero,
                 IntPtr.Zero,
                 out _,
@@ -54,16 +55,17 @@ public sealed class FocusAssistService
     {
         bool nextEnabled = !IsDoNotDisturbEnabled();
         SetDoNotDisturb(nextEnabled);
-        return IsDoNotDisturbEnabled();
+        return nextEnabled;
     }
 
     public void SetDoNotDisturb(bool enabled)
     {
         try
         {
+            ulong stateName = WnfQuietHoursProfile;
             uint newProfile = enabled ? 2u : 0u; // 2 = Alarms only / DND, 0 = Off
             Win32Interop.NtUpdateWnfStateData(
-                ref WnfQuietHoursProfile,
+                ref stateName,
                 ref newProfile,
                 4,
                 IntPtr.Zero,

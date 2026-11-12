@@ -25,6 +25,11 @@ public sealed class RingProgressControl : FrameworkElement
 
     private Pen _trackPen;
     private Pen _accentPen;
+    private StreamGeometry? _cachedArcGeo;
+    private double _cachedProgress = double.NaN;
+    private double _cachedWidth = double.NaN;
+    private double _cachedHeight = double.NaN;
+    private double _cachedThickness = double.NaN;
 
     public double Progress
     {
@@ -80,6 +85,16 @@ public sealed class RingProgressControl : FrameworkElement
             return;
         }
 
+        if (_cachedArcGeo is not null &&
+            Math.Abs(_cachedProgress - p) < 0.002 &&
+            Math.Abs(_cachedWidth - w) < 0.1 &&
+            Math.Abs(_cachedHeight - h) < 0.1 &&
+            Math.Abs(_cachedThickness - StrokeThickness) < 0.05)
+        {
+            dc.DrawGeometry(null, _accentPen, _cachedArcGeo);
+            return;
+        }
+
         double startAngle = -Math.PI * 0.5;
         double sweepAngle = p * Math.PI * 2.0;
         double endAngle = startAngle + sweepAngle;
@@ -105,6 +120,13 @@ public sealed class RingProgressControl : FrameworkElement
                 isSmoothJoin: false);
         }
         geo.Freeze();
+
+        _cachedProgress = p;
+        _cachedWidth = w;
+        _cachedHeight = h;
+        _cachedThickness = StrokeThickness;
+        _cachedArcGeo = geo;
+
         dc.DrawGeometry(null, _accentPen, geo);
     }
 

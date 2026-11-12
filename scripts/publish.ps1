@@ -20,6 +20,8 @@ dotnet publish $Project `
     -p:PublishTrimmed=true `
     -p:TrimMode=partial `
     -p:_SuppressWpfTrimError=true `
+    -p:DebugType=none `
+    -p:DebugSymbols=false `
     -o $OutputDir
 
 $ExePath = Join-Path $OutputDir "Atoll.exe"

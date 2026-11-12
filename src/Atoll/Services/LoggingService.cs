@@ -17,6 +17,7 @@ public sealed class LoggingService : IDisposable
     private readonly string _logFilePath;
     private readonly object _sync = new();
     private StreamWriter? _writer;
+    private long _writtenBytes;
     private bool _disposed;
     private const long MaxFileSizeBytes = 2 * 1024 * 1024;
 
@@ -40,10 +41,12 @@ public sealed class LoggingService : IDisposable
         try
         {
             var stream = new FileStream(_logFilePath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
+            _writtenBytes = stream.Length;
             _writer = new StreamWriter(stream, Encoding.UTF8) { AutoFlush = true };
         }
         catch
         {
+            _writtenBytes = 0;
             _writer = null;
         }
     }
@@ -61,8 +64,16 @@ public sealed class LoggingService : IDisposable
             if (_disposed) return;
             try
             {
-                RotateIfNeeded();
-                _writer?.WriteLine(line);
+                if (_writtenBytes >= MaxFileSizeBytes)
+                {
+                    RotateIfNeeded();
+                }
+
+                if (_writer is not null)
+                {
+                    _writer.WriteLine(line);
+                    _writtenBytes += Encoding.UTF8.GetByteCount(line) + 2;
+                }
             }
             catch
             {
@@ -85,8 +96,6 @@ public sealed class LoggingService : IDisposable
     private void RotateIfNeeded()
     {
         if (!File.Exists(_logFilePath)) return;
-        var info = new FileInfo(_logFilePath);
-        if (info.Length < MaxFileSizeBytes) return;
 
         _writer?.Dispose();
         _writer = null;

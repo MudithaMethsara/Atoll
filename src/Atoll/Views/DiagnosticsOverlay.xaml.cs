@@ -69,6 +69,7 @@ public partial class DiagnosticsOverlay : System.Windows.Window
     protected override void OnClosed(EventArgs e)
     {
         _timer.Stop();
+        _process.Dispose();
         base.OnClosed(e);
     }
 }

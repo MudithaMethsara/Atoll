@@ -100,5 +100,20 @@ public sealed class IslandStateMachineTests
         sm.SetPaused(false);
         Assert.Equal(IslandState.Compact, sm.CurrentState);
     }
+
+    [Fact]
+    public void StateMachine_Dispose_DetachesFromActivityManager()
+    {
+        var manager = new ActivityManager();
+        var sm = new IslandStateMachine(manager);
+        int stateEvents = 0;
+        sm.StateChanged += (_, _) => stateEvents++;
+
+        sm.Dispose();
+        manager.RegisterOrUpdate(new FakeActivity("media", "media"));
+
+        Assert.Equal(0, stateEvents);
+        Assert.Equal(IslandState.Idle, sm.CurrentState);
+    }
 }
 

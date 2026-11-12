@@ -144,10 +144,35 @@ public sealed class PrivacyModule : IIslandModule
     private void StopRegistryWatch()
     {
         if (_watchCts is null) return;
-        _watchCts.Cancel();
-        _watchCts.Dispose();
+        var cts = _watchCts;
+        var task = _watchTask;
         _watchCts = null;
         _watchTask = null;
+
+        cts.Cancel();
+        if (task is not null)
+        {
+            // Wait for WaitHandle.WaitAny to exit before disposing the CTS wait handle
+            try
+            {
+                if (task.Wait(500))
+                {
+                    cts.Dispose();
+                    return;
+                }
+            }
+            catch
+            {
+                cts.Dispose();
+                return;
+            }
+
+            _ = task.ContinueWith(_ => cts.Dispose(), TaskScheduler.Default);
+        }
+        else
+        {
+            cts.Dispose();
+        }
     }
 
     private void WatchRegistryLoop(CancellationToken token)

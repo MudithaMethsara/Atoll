@@ -16,6 +16,8 @@ public sealed class AudioEndpointService : IMMNotificationClient, IDisposable
     private bool _visualizerRequested;
     private bool _disposed;
     private readonly float[] _bands = new float[5];
+    private readonly float[][] _bandBuffers = [new float[5], new float[5]];
+    private int _bandBufferIndex;
     private long _lastSpectrumDispatchTicks;
 
     public float VolumePercent { get; private set; }
@@ -165,7 +167,10 @@ public sealed class AudioEndpointService : IMMNotificationClient, IDisposable
             {
                 StopLoopbackInternal();
                 Array.Clear(_bands);
-                SpectrumUpdated?.Invoke(this, (float[])_bands.Clone());
+                int idx = _bandBufferIndex ^ 1;
+                _bandBufferIndex = idx;
+                Array.Clear(_bandBuffers[idx]);
+                SpectrumUpdated?.Invoke(this, _bandBuffers[idx]);
             }
         }
     }
@@ -281,7 +286,7 @@ public sealed class AudioEndpointService : IMMNotificationClient, IDisposable
 
     private void OnLoopbackDataAvailable(object? sender, WaveInEventArgs e)
     {
-        if (e.BytesRecorded < 32 || _loopback is null) return;
+        if (_disposed || e.BytesRecorded < 32 || _loopback is null) return;
 
         // Throttle UI updates to ~25Hz to keep CPU minimal
         long now = Stopwatch.GetTimestamp();
@@ -294,6 +299,10 @@ public sealed class AudioEndpointService : IMMNotificationClient, IDisposable
         int sampleCount = e.BytesRecorded / 4;
         int stride = Math.Max(1, sampleCount / 160);
         int bandWidth = Math.Max(1, sampleCount / 5);
+
+        int idx = _bandBufferIndex ^ 1;
+        _bandBufferIndex = idx;
+        float[] publish = _bandBuffers[idx];
 
         for (int b = 0; b < 5; b++)
         {
@@ -311,10 +320,12 @@ public sealed class AudioEndpointService : IMMNotificationClient, IDisposable
 
             float rms = count > 0 ? (float)Math.Sqrt(sumSq / count) : 0f;
             float normalized = Math.Clamp(rms * 4.2f, 0.08f, 1.0f);
-            _bands[b] = _bands[b] * 0.45f + normalized * 0.55f;
+            float smoothed = _bands[b] * 0.45f + normalized * 0.55f;
+            _bands[b] = smoothed;
+            publish[b] = smoothed;
         }
 
-        SpectrumUpdated?.Invoke(this, (float[])_bands.Clone());
+        SpectrumUpdated?.Invoke(this, publish);
     }
 
     public void OnDeviceStateChanged(string deviceId, DeviceState newState)

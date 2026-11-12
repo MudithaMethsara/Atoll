@@ -5,8 +5,9 @@ namespace Atoll.Services;
 
 public sealed class BrightnessService : IDisposable
 {
+    private readonly object _sync = new();
     private ManagementEventWatcher? _watcher;
-    private bool _disposed;
+    private volatile bool _disposed;
 
     public int CurrentBrightness { get; private set; } = 100;
     public bool IsSupported { get; private set; }
@@ -20,11 +21,15 @@ public sealed class BrightnessService : IDisposable
         {
             if (_disposed) return;
             bool supported = TryReadInternalBrightness(out int level) || TryReadDdcBrightness(out level);
-            IsSupported = supported;
-            if (supported)
+            lock (_sync)
             {
-                CurrentBrightness = level;
-                StartWmiWatcher();
+                if (_disposed) return;
+                IsSupported = supported;
+                if (supported)
+                {
+                    CurrentBrightness = level;
+                    StartWmiWatcherLocked();
+                }
             }
         });
     }
@@ -44,29 +49,15 @@ public sealed class BrightnessService : IDisposable
         SetBrightness(CurrentBrightness + delta);
     }
 
-    private void StartWmiWatcher()
+    private void StartWmiWatcherLocked()
     {
+        if (_disposed || _watcher is not null) return;
         try
         {
             var scope = new ManagementScope(@"\\.\root\wmi");
             var query = new WqlEventQuery("SELECT * FROM WmiMonitorBrightnessEvent");
             _watcher = new ManagementEventWatcher(scope, query);
-            _watcher.EventArrived += (_, args) =>
-            {
-                try
-                {
-                    if (args.NewEvent["Brightness"] is byte b)
-                    {
-                        IsSupported = true;
-                        CurrentBrightness = b;
-                        BrightnessChanged?.Invoke(this, b);
-                    }
-                }
-                catch
-                {
-                    // Ignore malformed WMI event
-                }
-            };
+            _watcher.EventArrived += OnWmiBrightnessEventArrived;
             _watcher.Start();
         }
         catch (Exception ex)
@@ -74,6 +65,24 @@ public sealed class BrightnessService : IDisposable
             LoggingService.Instance.Debug("Brightness", $"WMI brightness watcher unavailable (desktop monitor likely): {ex.Message}");
             _watcher?.Dispose();
             _watcher = null;
+        }
+    }
+
+    private void OnWmiBrightnessEventArrived(object sender, EventArrivedEventArgs args)
+    {
+        try
+        {
+            using var evt = args.NewEvent;
+            if (evt?["Brightness"] is byte b)
+            {
+                IsSupported = true;
+                CurrentBrightness = b;
+                BrightnessChanged?.Invoke(this, b);
+            }
+        }
+        catch
+        {
+            // Ignore malformed WMI event
         }
     }
 
@@ -86,10 +95,13 @@ public sealed class BrightnessService : IDisposable
             using var results = searcher.Get();
             foreach (ManagementObject obj in results)
             {
-                if (obj["CurrentBrightness"] is byte b)
+                using (obj)
                 {
-                    level = b;
-                    return true;
+                    if (obj["CurrentBrightness"] is byte b)
+                    {
+                        level = b;
+                        return true;
+                    }
                 }
             }
         }
@@ -108,8 +120,11 @@ public sealed class BrightnessService : IDisposable
             using var results = searcher.Get();
             foreach (ManagementObject obj in results)
             {
-                obj.InvokeMethod("WmiSetBrightness", new object[] { 1u, (byte)level });
-                return true;
+                using (obj)
+                {
+                    obj.InvokeMethod("WmiSetBrightness", new object[] { 1u, (byte)level });
+                    return true;
+                }
             }
         }
         catch
@@ -182,18 +197,25 @@ public sealed class BrightnessService : IDisposable
 
     public void Dispose()
     {
-        if (_disposed) return;
-        _disposed = true;
-        try
+        lock (_sync)
         {
-            _watcher?.Stop();
-            _watcher?.Dispose();
+            if (_disposed) return;
+            _disposed = true;
+            try
+            {
+                if (_watcher is not null)
+                {
+                    _watcher.EventArrived -= OnWmiBrightnessEventArrived;
+                    _watcher.Stop();
+                    _watcher.Dispose();
+                }
+            }
+            catch
+            {
+                // Ignore
+            }
+            _watcher = null;
         }
-        catch
-        {
-            // Ignore
-        }
-        _watcher = null;
     }
 }
 

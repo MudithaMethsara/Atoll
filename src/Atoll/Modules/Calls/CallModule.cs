@@ -93,6 +93,7 @@ public sealed class CallModule : IIslandModule
     private DispatcherTimer? _recheckTimer;
     private DateTime _callStartUtc;
     private int _activeCallPid;
+    private int _evalQueued;
     private bool _disposed;
 
     public string ModuleId => "calls";
@@ -139,7 +140,15 @@ public sealed class CallModule : IIslandModule
 
     private void OnAudioSessionsChanged(object? sender, EventArgs e)
     {
-        _ctx?.UiDispatcher.BeginInvoke(EvaluateCallState);
+        if (_disposed || _ctx is null) return;
+        if (Interlocked.Exchange(ref _evalQueued, 1) == 0)
+        {
+            _ctx.UiDispatcher.BeginInvoke(() =>
+            {
+                Interlocked.Exchange(ref _evalQueued, 0);
+                EvaluateCallState();
+            });
+        }
     }
 
     public void EvaluateCallState()

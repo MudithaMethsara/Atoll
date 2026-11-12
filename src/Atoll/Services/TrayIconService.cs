@@ -131,8 +131,9 @@ public sealed class TrayIconService : IDisposable
             var streamInfo = Application.GetResourceStream(new Uri("pack://application:,,,/Resources/Atoll.ico"));
             if (streamInfo?.Stream is null) return null;
 
+            using var resStream = streamInfo.Stream;
             using var ms = new MemoryStream();
-            streamInfo.Stream.CopyTo(ms);
+            resStream.CopyTo(ms);
             byte[] ico = ms.ToArray();
             if (ico.Length < 22) return null;
 

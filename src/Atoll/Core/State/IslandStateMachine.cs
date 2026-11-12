@@ -16,12 +16,13 @@ public sealed class IslandStateChangedEventArgs : EventArgs
     }
 }
 
-public sealed class IslandStateMachine
+public sealed class IslandStateMachine : IDisposable
 {
     private readonly ActivityManager _activityManager;
     private readonly Action<TimeSpan, Action>? _scheduleTimer;
     private readonly Action? _cancelTimer;
     private int _alertToken;
+    private bool _disposed;
 
     public IslandState CurrentState { get; private set; } = IslandState.Idle;
     public IIslandActivity? ActiveAlertActivity { get; private set; }
@@ -171,6 +172,14 @@ public sealed class IslandStateMachine
         var prev = CurrentState;
         CurrentState = nextState;
         StateChanged?.Invoke(this, new IslandStateChangedEventArgs(prev, nextState, alertActivity));
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        CancelPendingAlert();
+        _activityManager.ActivitiesChanged -= OnActivitiesChanged;
     }
 }
 

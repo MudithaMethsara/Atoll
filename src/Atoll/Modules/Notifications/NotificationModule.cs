@@ -52,9 +52,11 @@ public sealed class NotificationActivity : IslandActivityBase
 
 public sealed class NotificationModule : IIslandModule
 {
+    private const int MaxSeenIds = 256;
     private ModuleContext? _ctx;
     private UserNotificationListener? _listener;
     private readonly HashSet<uint> _seenIds = new();
+    private readonly Queue<uint> _seenOrder = new();
     private bool _disposed;
 
     public string ModuleId => "notifications";
@@ -115,7 +117,7 @@ public sealed class NotificationModule : IIslandModule
             var existing = await _listener.GetNotificationsAsync(NotificationKinds.Toast);
             foreach (var n in existing)
             {
-                _seenIds.Add(n.Id);
+                TrackSeenId(n.Id);
             }
 
             _listener.NotificationChanged += OnNotificationChanged;
@@ -150,7 +152,7 @@ public sealed class NotificationModule : IIslandModule
     private async Task HandleAddedNotificationAsync(uint notificationId)
     {
         if (!IsEnabled || _disposed || _ctx is null || _listener is null) return;
-        if (!_seenIds.Add(notificationId)) return;
+        if (!TrackSeenId(notificationId)) return;
 
         try
         {
@@ -191,6 +193,17 @@ public sealed class NotificationModule : IIslandModule
         {
             LoggingService.Instance.Debug("Notifications", $"Failed processing notification {notificationId}: {ex.Message}");
         }
+    }
+
+    private bool TrackSeenId(uint id)
+    {
+        if (!_seenIds.Add(id)) return false;
+        _seenOrder.Enqueue(id);
+        while (_seenIds.Count > MaxSeenIds && _seenOrder.Count > 0)
+        {
+            _seenIds.Remove(_seenOrder.Dequeue());
+        }
+        return true;
     }
 
     internal void DismissNotificationFromSystem(uint id)

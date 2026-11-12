@@ -53,5 +53,28 @@ public sealed class SettingsServiceTests
             if (Directory.Exists(tempDir)) Directory.Delete(tempDir, recursive: true);
         }
     }
+
+    [Fact]
+    public void SettingsService_DebouncedUpdateFlushesOnDispose()
+    {
+        string tempDir = Path.Combine(Path.GetTempPath(), "AtollTests_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        string path = Path.Combine(tempDir, "settings.json");
+
+        try
+        {
+            using (var svc = new SettingsService(path))
+            {
+                svc.Update(s => s.TopOffset = 22.0, debounced: true);
+            }
+
+            using var reloaded = new SettingsService(path);
+            Assert.Equal(22.0, reloaded.Current.TopOffset, precision: 2);
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir)) Directory.Delete(tempDir, recursive: true);
+        }
+    }
 }
 

@@ -50,13 +50,13 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
     public double TopOffset
     {
         get => _draft.TopOffset;
-        set { if (Math.Abs(_draft.TopOffset - value) > 0.01) { _draft.TopOffset = value; Commit(); } }
+        set { if (Math.Abs(_draft.TopOffset - value) > 0.01) { _draft.TopOffset = value; Commit(debounced: true); } }
     }
 
     public double HorizontalOffset
     {
         get => _draft.HorizontalOffset;
-        set { if (Math.Abs(_draft.HorizontalOffset - value) > 0.01) { _draft.HorizontalOffset = value; Commit(); } }
+        set { if (Math.Abs(_draft.HorizontalOffset - value) > 0.01) { _draft.HorizontalOffset = value; Commit(debounced: true); } }
     }
 
     public bool NotchMode
@@ -68,13 +68,13 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
     public double SizeScale
     {
         get => _draft.SizeScale;
-        set { if (Math.Abs(_draft.SizeScale - value) > 0.005) { _draft.SizeScale = value; Commit(); } }
+        set { if (Math.Abs(_draft.SizeScale - value) > 0.005) { _draft.SizeScale = value; Commit(debounced: true); } }
     }
 
     public double AnimationSpeed
     {
         get => _draft.AnimationSpeed;
-        set { if (Math.Abs(_draft.AnimationSpeed - value) > 0.005) { _draft.AnimationSpeed = value; Commit(); } }
+        set { if (Math.Abs(_draft.AnimationSpeed - value) > 0.005) { _draft.AnimationSpeed = value; Commit(debounced: true); } }
     }
 
     public bool LowPowerMode
@@ -221,9 +221,9 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(string.Empty));
     }
 
-    private void Commit([CallerMemberName] string? propertyName = null)
+    private void Commit([CallerMemberName] string? propertyName = null, bool debounced = false)
     {
-        _settingsService.Replace(_draft);
+        _settingsService.Replace(_draft, debounced);
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
 }

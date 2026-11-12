@@ -46,5 +46,17 @@ public sealed class IslandGeometryTests
         // Point just inside rounded corner arc
         Assert.True(IslandGeometry.HitTestRoundedRect(new Point(112, 20), rect, radius));
     }
+
+    [Fact]
+    public void SquircleGeometryCache_ReusesGeometryWithinToleranceAndRebuildsOnChange()
+    {
+        var cache = new SquircleGeometryCache();
+        var g1 = cache.GetOrCreate(10, 8, 120, 34, 17);
+        var g2 = cache.GetOrCreate(10.02, 8.01, 120.01, 34, 17);
+        var g3 = cache.GetOrCreate(10, 8, 220, 36, 18);
+
+        Assert.Same(g1, g2);
+        Assert.NotSame(g1, g3);
+    }
 }
 

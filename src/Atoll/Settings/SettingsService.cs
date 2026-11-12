@@ -4,10 +4,13 @@ using Atoll.Services;
 
 namespace Atoll.Settings;
 
-public sealed class SettingsService
+public sealed class SettingsService : IDisposable
 {
     private readonly string _settingsPath;
     private readonly object _sync = new();
+    private System.Threading.Timer? _saveTimer;
+    private bool _pendingSave;
+    private bool _disposed;
 
     public AppSettings Current { get; private set; }
 
@@ -52,7 +55,7 @@ public sealed class SettingsService
         }
     }
 
-    public void Update(Action<AppSettings> mutator)
+    public void Update(Action<AppSettings> mutator, bool debounced = false)
     {
         AppSettings snapshot;
         lock (_sync)
@@ -61,14 +64,14 @@ public sealed class SettingsService
             mutator(next);
             ClampValues(next);
             Current = next;
-            SaveInternal(Current);
+            PersistOrScheduleLocked(debounced);
             snapshot = Current.Clone();
         }
 
         SettingsChanged?.Invoke(this, snapshot);
     }
 
-    public void Replace(AppSettings updated)
+    public void Replace(AppSettings updated, bool debounced = false)
     {
         AppSettings snapshot;
         lock (_sync)
@@ -76,11 +79,55 @@ public sealed class SettingsService
             var copy = updated.Clone();
             ClampValues(copy);
             Current = copy;
-            SaveInternal(Current);
+            PersistOrScheduleLocked(debounced);
             snapshot = Current.Clone();
         }
 
         SettingsChanged?.Invoke(this, snapshot);
+    }
+
+    public void Flush()
+    {
+        lock (_sync)
+        {
+            _saveTimer?.Change(Timeout.Infinite, Timeout.Infinite);
+            if (_pendingSave)
+            {
+                _pendingSave = false;
+                SaveInternal(Current);
+            }
+        }
+    }
+
+    private void PersistOrScheduleLocked(bool debounced)
+    {
+        if (!debounced || _disposed)
+        {
+            _pendingSave = false;
+            _saveTimer?.Change(Timeout.Infinite, Timeout.Infinite);
+            SaveInternal(Current);
+            return;
+        }
+
+        _pendingSave = true;
+        _saveTimer ??= new System.Threading.Timer(_ => Flush(), null, Timeout.Infinite, Timeout.Infinite);
+        _saveTimer.Change(250, Timeout.Infinite);
+    }
+
+    public void Dispose()
+    {
+        lock (_sync)
+        {
+            if (_disposed) return;
+            _disposed = true;
+            _saveTimer?.Dispose();
+            _saveTimer = null;
+            if (_pendingSave)
+            {
+                _pendingSave = false;
+                SaveInternal(Current);
+            }
+        }
     }
 
     private static void ClampValues(AppSettings s)

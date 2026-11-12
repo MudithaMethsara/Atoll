@@ -118,6 +118,7 @@ public sealed class MediaModule : IIslandModule
     private DateTime _lastTimelineAnchorUtc;
     private TimeSpan _anchorPosition;
     private string _lastArtKey = string.Empty;
+    private int _refreshQueued;
     private bool _disposed;
 
     public string ModuleId => "media";
@@ -204,12 +205,25 @@ public sealed class MediaModule : IIslandModule
 
     private void OnCurrentSessionChanged(GlobalSystemMediaTransportControlsSessionManager sender, CurrentSessionChangedEventArgs args)
     {
-        _ctx?.UiDispatcher.BeginInvoke(() => _ = RefreshSessionAsync());
+        ScheduleSessionRefresh();
     }
 
     private void OnSessionsChanged(GlobalSystemMediaTransportControlsSessionManager sender, SessionsChangedEventArgs args)
     {
-        _ctx?.UiDispatcher.BeginInvoke(() => _ = RefreshSessionAsync());
+        ScheduleSessionRefresh();
+    }
+
+    private void ScheduleSessionRefresh()
+    {
+        if (_disposed || _ctx is null) return;
+        if (Interlocked.Exchange(ref _refreshQueued, 1) == 0)
+        {
+            _ctx.UiDispatcher.BeginInvoke(() =>
+            {
+                Interlocked.Exchange(ref _refreshQueued, 0);
+                _ = RefreshSessionAsync();
+            });
+        }
     }
 
     private async Task RefreshSessionAsync()
@@ -285,7 +299,12 @@ public sealed class MediaModule : IIslandModule
             Color dominant = Color.FromRgb(10, 132, 255);
             string artKey = $"{session.SourceAppUserModelId}|{title}|{artist}";
 
-            if (props.Thumbnail is not null)
+            if (string.Equals(artKey, _lastArtKey, StringComparison.Ordinal) && _activity?.Thumbnail is not null)
+            {
+                art = _activity.Thumbnail;
+                dominant = _activity.AccentColor;
+            }
+            else if (props.Thumbnail is not null)
             {
                 byte[]? bytes = await ReadStreamBytesAsync(props.Thumbnail);
                 if (bytes is { Length: > 0 })
@@ -297,11 +316,6 @@ public sealed class MediaModule : IIslandModule
                         dominant = cached.Value.DominantColor;
                     }
                 }
-            }
-            else if (string.Equals(artKey, _lastArtKey, StringComparison.Ordinal) && _activity?.Thumbnail is not null)
-            {
-                art = _activity.Thumbnail;
-                dominant = _activity.AccentColor;
             }
 
             _lastArtKey = artKey;

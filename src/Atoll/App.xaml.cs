@@ -172,8 +172,10 @@ public partial class App : Application
                 try
                 {
                     await module.InitializeAsync(ctx);
+#if DEBUG
                     proc.Refresh();
                     LoggingService.Instance.Info("App", $"Init {module.ModuleId}: WS={proc.WorkingSet64 / 1048576.0:F1}MB Priv={proc.PrivateMemorySize64 / 1048576.0:F1}MB");
+#endif
                 }
                 catch (Exception ex)
                 {
@@ -281,6 +283,7 @@ public partial class App : Application
     {
         if (_stateMachine is null || _trayService is null) return;
         bool next = !_stateMachine.IsPaused;
+        if (next) _audioService?.SetVisualizerActive(false);
         _stateMachine.SetPaused(next);
         _trayService.IsPaused = next;
         _trayService.UpdateTooltip(next ? "Atoll Dynamic Island (Paused)" : "Atoll Dynamic Island");
@@ -388,7 +391,9 @@ public partial class App : Application
         _trayService?.Dispose();
         _brightnessService?.Dispose();
         _audioService?.Dispose();
+        _stateMachine?.Dispose();
         _animator?.Dispose();
+        _settingsService?.Dispose();
         _imageCache?.Clear();
 
         if (_ownsMutex)
